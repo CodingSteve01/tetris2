@@ -1,0 +1,386 @@
+<html>
+	<head>
+		<script>
+			class element {
+				constructor(form, fill) {
+					this.form = form;
+					this.width = 0;
+					this.height = this.form.length;
+					for (let y = 0; y < this.height; y++) {
+						if (this.form[y].length > this.width) {
+							this.width = this.form[y].length;
+						}
+					}
+					this.x = 0;
+					this.y = 0;
+					this.fill = fill;
+					this.isDone = false;
+				}
+
+				writeToMatrix(game) {
+					const matrix = game.matrix;
+					for (let y = 0; y < this.height; y++) {
+						let absY = this.y + y;
+						if (absY >= game.height) continue;
+						for (let x = 0; x < this.width; x++) {
+							let absX = this.x + x;
+							if (absX >= game.width) continue;
+							if (!this.contains(absX, absY)) continue;
+							matrix[absY][absX] = this.fill;
+						}
+					}
+				}
+
+				get right() {
+					return this.x + this.width;
+				}
+
+				get bottom() {
+					return this.y + this.height;
+				}
+
+				contains(x, y) {
+					let relativeX = x - this.x;
+					let relativeY = y - this.y;
+					if (relativeX < 0) return false;
+					if (relativeY < 0) return false;
+					if (relativeX >= this.width) return false;
+					if (relativeY >= this.height) return false;
+					let formValue = this.form[relativeY][relativeX];
+					return formValue > 0;
+				}
+
+				collides(game, directionX, directionY) {
+					// Check the bounds (y first, then x)
+					if (this.bottom + directionY > game.height)
+						return {matrix:false, left:false, right:false, top:false, bottom:true};
+					if (this.y + directionY < 0)
+						return {matrix:false, left:false, right:false, top:true, bottom:false};
+					if (this.x + directionX < 0)
+						return {matrix:false, left:true, right:false, top:false, bottom:false};
+					if (this.right + directionX > game.width)
+						return {matrix:false, left:false, right:true, top:false, bottom:false};
+					
+					// Check for matrix collissions
+					const matrix = game.matrix;
+					for (let x = 0; x < this.width; x++) {
+						for (let y = 0; y < this.height; y++) {
+							let absX = this.x + x + directionX;
+							let absY = this.y + y + directionY;
+
+							// Check collission with the matrix
+							let formValue = this.form[y][x];
+							if (formValue <= 0) continue;
+							if (matrix[absY][absX] > 0)
+								return {matrix:true, left:false, right:false, top:false, bottom:false};
+						}
+					}
+
+					// No collission
+					return {matrix:false, left:false, right:false, top:false, bottom:false};
+				}
+
+				rotate(game, direction) {
+					if (direction === 0) return;
+
+					for (let r = 0; r < Math.abs(direction); r++) {
+						const newForm = [];
+						const newWidth = this.height;
+						const newHeight = this.width;
+
+						for (let x = 0; x < this.width; x++) {
+							newForm[x] = [];
+							for (let y = 0; y < this.height; y++) {
+								if (direction > 0) {
+									newForm[x][y] = this.form[this.height - 1 - y][x];
+								} else {
+									newForm[x][y] = this.form[y][this.width - 1 - x];
+								}
+							}
+						}
+
+						this.form = newForm;
+						this.width = newWidth;
+						this.height = newHeight;
+					}
+				}
+
+
+				update(game) {
+					const matrix = game.matrix;
+
+					if (this.isDone) return;
+
+					const speed = 1;
+					const newY = this.y + speed;
+
+					// Collission detection
+					let collission = this.collides(game, 0, speed);
+					if (collission.matrix || collission.bottom) {
+						this.writeToMatrix(game);
+						this.isDone = true;
+						return;
+					}
+
+					// Falling down
+					this.y = newY;
+				}
+			}
+			class gameConstants {
+				static get fills() {
+					return [
+						'transparent',
+						'red',
+						'green',
+						'blue',
+						'yellow',
+						'orange',
+						'purple',
+						'cyan',
+					];
+				}
+
+				static get forms() {
+					return [
+						[
+							[1,1,1],
+							[1,0,0],
+						],
+						[
+							[1,1,1],
+							[0,1,0],
+						],
+						[
+							[1,1,1],
+						],
+						[
+							[1,1],
+							[1,1],
+						],
+						[
+							[1,1,0],
+							[0,1,1],
+						],
+					];
+				}
+			}
+			class game {
+				constructor(width, height, speed) {
+					this.width   = width;
+					this.height   = height;
+					this.speed    = speed;
+					this.gameOver = false;
+					this.matrix = [];
+					this.fills = gameConstants.fills;
+					this.forms = gameConstants.forms;
+					this.initMatrix();
+					this.getNewElement();
+					this.score = 0; // New: track score
+					this.highScore = localStorage.getItem('highScore') || 0; // New: get highscore from local storage
+					this.updateScoreDisplay(); // New: update score and highscore display
+				}
+
+				initMatrix() {
+					for (let y = 0; y < this.height; y++) {
+						this.matrix[y] = [];
+						for (let x = 0; x < this.width; x++) {
+							this.matrix[y][x] = 0;
+						}
+					}
+				}
+
+				buildMatrix() {
+					let output = '';
+					for (let row = 0; row < this.height; row++) {
+						output += '<r>';
+						for (let col = 0; col < this.width; col++) {
+							output += '<c></c>';
+						}
+						output += '</r>';
+					}
+					return output;
+				}
+
+				updateScoreDisplay() {
+					document.getElementById('score').textContent = `Score: ${this.score}`;
+					document.getElementById('highScore').textContent = `Highscore: ${this.highScore}`;
+				}
+
+				start() {
+					this.cells = document.getElementsByTagName('c');
+					this.addEventListeners();
+					this.gameInterval = setInterval(() => this.gameLoop(), this.speed);
+				}
+
+				// Add keyboard event listeners for controlling the Tetris blocks.
+				addEventListeners() {
+					document.addEventListener('keydown', (event) => {
+						// Prevent default action to avoid scrolling the browser window.
+						event.preventDefault();
+						if (this.gameOver) return;
+
+						switch (event.key) {
+							case 'ArrowLeft':
+								// Move the element left if there's no collision.
+								if (!this.currElement.collides(this, -1, 0).matrix && this.currElement.x - 1 >= 0) {
+									this.currElement.x--;
+								}
+								this.render();
+								break;
+							case 'ArrowRight':
+								// Move the element right if there's no collision.
+								if (!this.currElement.collides(this, 1, 0).matrix && this.currElement.x + 1 <= this.width - this.currElement.width) {
+									this.currElement.x++;
+								}
+								this.render();
+								break;
+							case 'ArrowDown':
+								// Move the element down faster if there's no collision.
+								if (!this.currElement.collides(this, 0, 1).matrix && this.currElement.y + 1 <= this.height - this.currElement.height) {
+									this.currElement.y++;
+								}
+								this.render();
+								break;
+							case 'ArrowUp':
+								// Rotate the element if there's no collision.
+								this.currElement.rotate(this, 1);
+								if (this.currElement.x + this.currElement.width > this.width) {
+									this.currElement.x = this.width - this.currElement.width;
+								}
+								if (this.currElement.collides(this, 0, 0).matrix) {
+									this.currElement.rotate(this, -1);
+								}
+								this.render();
+								break;
+						}
+					});
+				}
+
+				// Check for complete rows and remove them.
+				clearCompleteRows() {
+					let rowsCleared = 0; // New: track number of cleared rows
+					for (let y = this.height - 1; y >= 0; y--) {
+						let complete = true;
+						for (let x = 0; x < this.width; x++) {
+							if (this.matrix[y][x] === 0) {
+								complete = false;
+								break;
+							}
+						}
+						if (complete) {
+							this.matrix.splice(y, 1);
+							this.matrix.unshift(new Array(this.width).fill(0));
+							y++;
+							rowsCleared++; // New: increment for each cleared row
+						}
+					}
+
+					if (rowsCleared > 0) {
+						this.score += rowsCleared * 100; // New: update score based on rows cleared
+						if (this.score > this.highScore) {
+							this.highScore = this.score; // New: update highscore if current score is higher
+							localStorage.setItem('highScore', this.highScore); // New: save highscore in local storage
+						}
+						this.updateScoreDisplay(); // New: update score and highscore display
+
+						// Increase speed after clearing a row.
+						this.speed *= 0.95;
+						clearInterval(this.gameInterval);
+						this.gameInterval = setInterval(() => this.gameLoop(), this.speed);
+					}
+				}
+
+				gameLoop() {
+					this.update();
+					this.render();
+				}
+
+				update() {
+					// Check game over
+					if (this.gameOver) return;
+
+					this.currElement.update(this);
+					
+					// Get a new element
+					if (this.currElement.isDone)
+						this.getNewElement();
+
+					// Clear complete rows after each update.
+					this.clearCompleteRows();
+				}
+
+				getNewElement() {
+					const form = this.forms[Math.floor(Math.random() * this.forms.length)];
+					const fill = 1 + Math.floor(Math.random() * (this.fills.length - 1));
+					const el = new element(form, fill);
+					el.rotate(this, Math.floor(Math.random() * 4))
+					el.x = Math.floor(Math.random() * (this.width - el.width + 1));
+					this.currElement = el;
+
+					// Game over when the new element already collides with the matrix
+					var collission = el.collides(this, 0, 0);
+					this.gameOver = collission.matrix;
+				}
+
+				render() {
+					for (let y = 0; y < this.height; y++) {
+						for (let x = 0; x < this.width; x++) {
+							let cell = this.cells[(y * this.width) + x];
+
+							let fill = this.matrix[y][x];
+							if (this.currElement.contains(x, y)) {
+								fill = this.currElement.fill;
+							}
+
+							cell.style.backgroundColor = this.fills[fill];
+						}
+					}
+				}
+			}
+		</script>
+		<style>
+			panel {
+				display: flex;
+				flex-direction: column;
+				background-color: lightgray;
+				width: max-content;
+			}
+			r {
+				display: flex;
+			}
+			c {
+				display: block;
+				width: 15px;
+				height: 15px;
+				border-top: 1px solid gray;
+				border-left: 1px solid gray;
+			}
+			c:last-child {
+				border-right: 1px solid gray;
+			}
+			r:last-child c {
+				border-bottom: 1px solid gray;
+			}
+			#scoreDisplay {
+				padding: 10px;
+				text-align: left;
+			}
+		</style>
+	</head>
+	<body>
+		<panel></panel>
+		<div id="scoreDisplay">
+			<div id="score">Score: 0</div>
+			<div id="highScore">Highscore: 0</div>
+		</div>
+	</body>
+	<script>
+		let currGame = new game(20, 30, 400);
+		let gameMatrix = currGame.buildMatrix();
+
+		let panel = document.getElementsByTagName('panel')[0];
+		panel.innerHTML = gameMatrix;
+
+		currGame.start();
+	</script>
+</html>
