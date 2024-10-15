@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Modern Tetris</title>
+    <title>Modern Tetris - Multiplayer</title>
     <style>
         :root {
             --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
@@ -12,6 +12,7 @@
             --button-color: white;
             --canvas-bg: rgba(255, 255, 255, 0.9);
             --block-stroke: rgba(0, 0, 0, 0.5);
+            --panel-bg: rgba(255, 255, 255, 0.8);
         }
 
         .dark-mode {
@@ -22,6 +23,7 @@
             --button-color: #f0f0f0;
             --canvas-bg: rgba(30, 30, 30, 0.9);
             --block-stroke: rgba(255, 255, 255, 0.3);
+            --panel-bg: rgba(30, 30, 30, 0.8);
         }
 
         body {
@@ -29,7 +31,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             background: var(--bg-gradient);
             color: var(--text-color);
@@ -38,11 +40,23 @@
 
         #game-container {
             display: flex;
+            flex-direction: column;
             gap: 20px;
             padding: 20px;
             background-color: rgba(255, 255, 255, 0.1);
             border-radius: 15px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-areas {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .game-area {
+            display: flex;
+            gap: 20px;
         }
 
         canvas {
@@ -51,13 +65,13 @@
             background-color: var(--canvas-bg);
         }
 
-        #side-panel {
+        .side-panel {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
-        #next-piece {
+        .next-piece {
             width: 100px;
             height: 100px;
             border: 2px solid var(--board-border);
@@ -66,25 +80,47 @@
             margin-top: 10px;
         }
 
-        #score, #high-score, #level {
+        .score, .high-score, .level {
             font-size: 18px;
             margin-bottom: 10px;
         }
 
+        #controls-panel {
+            width: 100%;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .buttons-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
         button {
-            font-size: 18px;
+            font-size: 16px;
             padding: 10px 15px;
             background-color: var(--button-bg);
             color: var(--button-color);
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-bottom: 10px;
+            transition: background-color 0.3s ease, transform 0.1s ease;
         }
 
         button:hover {
             background-color: #45a049;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(1px);
         }
 
         #theme-toggle {
@@ -98,595 +134,640 @@
         #hint {
             font-size: 14px;
             color: var(--text-color);
-            margin-top: 10px;
+            text-align: center;
+            width: 100%;
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="game-board" width="300" height="600"></canvas>
-        <div id="side-panel">
-            <div>
-                <div id="score">Score: 0</div>
-                <div id="high-score">High Score: 0</div>
-                <div id="level">Level: 0</div>
-                <div>Next Piece:</div>
-                <canvas id="next-piece" width="100" height="100"></canvas>
+<div id="game-container">
+    <div class="game-areas">
+        <div class="game-area" id="player1-container">
+            <canvas id="game-board-1" width="300" height="600"></canvas>
+            <div class="side-panel">
+                <div>
+                    <div class="score" id="score-1">Score: 0</div>
+                    <div class="high-score" id="high-score-1">High Score: 0</div>
+                    <div class="level" id="level-1">Level: 0</div>
+                    <div>Next Piece:</div>
+                    <canvas class="next-piece" id="next-piece-1" width="100" height="100"></canvas>
+                </div>
             </div>
-            <div>
-                <button id="start-button">Start Game</button>
-                <button id="theme-toggle">Toggle Theme</button>
-                <button id="reset-high-score">Reset High Score</button>
-                <div id="hint">Press 'S' to start or restart the game. Press 'P' to pause.</div>
+        </div>
+        <div class="game-area" id="player2-container" style="display: none;">
+            <canvas id="game-board-2" width="300" height="600"></canvas>
+            <div class="side-panel">
+                <div>
+                    <div class="score" id="score-2">Score: 0</div>
+                    <div class="high-score" id="high-score-2">High Score: 0</div>
+                    <div class="level" id="level-2">Level: 0</div>
+                    <div>Next Piece:</div>
+                    <canvas class="next-piece" id="next-piece-2" width="100" height="100"></canvas>
+                </div>
             </div>
         </div>
     </div>
+    <div id="controls-panel">
+        <div class="buttons-row">
+            <button id="start-button">Start Game</button>
+            <button id="theme-toggle">Toggle Theme</button>
+            <button id="reset-high-score">Reset High Score</button>
+            <button id="toggle-multiplayer">Toggle Multiplayer</button>
+        </div>
+        <div id="hint">Press 'Enter' to start or restart the game. Press 'Space' to pause.</div>
+    </div>
+</div>
 
-    <script>
-        const canvas = document.getElementById('game-board');
-        const ctx = canvas.getContext('2d');
-        const nextPieceCanvas = document.getElementById('next-piece');
-        const nextPieceCtx = nextPieceCanvas.getContext('2d');
-        const startButton = document.getElementById('start-button');
-        const themeToggle = document.getElementById('theme-toggle');
-        const scoreElement = document.getElementById('score');
-        const highScoreElement = document.getElementById('high-score');
-        const levelElement = document.getElementById('level');
-        const resetHighScoreButton = document.getElementById('reset-high-score');
+<script>
+	const BLOCK_SIZE = 30;
+	const BOARD_WIDTH = 10;
+	const BOARD_HEIGHT = 20;
+	const COLORS = ['#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'];
 
-        const BLOCK_SIZE = 30;
-        const BOARD_WIDTH = 10;
-        const BOARD_HEIGHT = 20;
-        const COLORS = ['#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'];
+	const SHAPES = [
+		[[1, 1, 1, 1]],
+		[[1, 1], [1, 1]],
+		[[1, 1, 1], [0, 1, 0]],
+		[[1, 1, 1], [1, 0, 0]],
+		[[1, 1, 1], [0, 0, 1]],
+		[[1, 1, 0], [0, 1, 1]],
+		[[0, 1, 1], [1, 1, 0]]
+	];
 
-        let board = createBoard();
-        let score = 0;
-        let highScore = 0;
-        let gameLoop;
-        let currentPiece;
-        let nextPiece;
-        let lastTime = 0;
-        let dropCounter = 0;
-        let dropInterval = 1000;
-        let rowsToClear = [];
-        let clearingStartTime = null;
-        let pieceLanded = false;
-        let level = 0;
-        let linesCleared = 0;
-        let isPaused = false;
+	let isMultiplayer = false;
+	let players = [createPlayer(1)];
 
-        // Variables for motion blur
-        let isDownKeyPressed = false;
-        let previousPositions = [];
-        const maxTrailLength = 5; // Number of trailing blocks
+	const startButton = document.getElementById('start-button');
+	const themeToggle = document.getElementById('theme-toggle');
+	const resetHighScoreButton = document.getElementById('reset-high-score');
+	const toggleMultiplayerButton = document.getElementById('toggle-multiplayer');
 
-        // Variables for shake effect
-        let shakeStartTime = null;
-        const shakeDuration = 200; // Duration of the shake in milliseconds
+	function createPlayer(playerNumber) {
+		return {
+			canvas: document.getElementById(`game-board-${playerNumber}`),
+			ctx: document.getElementById(`game-board-${playerNumber}`).getContext('2d'),
+			nextPieceCanvas: document.getElementById(`next-piece-${playerNumber}`),
+			nextPieceCtx: document.getElementById(`next-piece-${playerNumber}`).getContext('2d'),
+			scoreElement: document.getElementById(`score-${playerNumber}`),
+			highScoreElement: document.getElementById(`high-score-${playerNumber}`),
+			levelElement: document.getElementById(`level-${playerNumber}`),
+			board: createBoard(),
+			score: 0,
+			highScore: 0,
+			currentPiece: null,
+			nextPiece: null,
+			lastTime: 0,
+			dropCounter: 0,
+			dropInterval: 1000,
+			rowsToClear: [],
+			clearingStartTime: null,
+			pieceLanded: false,
+			level: 0,
+			linesCleared: 0,
+			isDownKeyPressed: false,
+			previousPositions: [],
+			shakeStartTime: null
+		};
+	}
 
-        const SHAPES = [
-            [[1, 1, 1, 1]],
-            [[1, 1], [1, 1]],
-            [[1, 1, 1], [0, 1, 0]],
-            [[1, 1, 1], [1, 0, 0]],
-            [[1, 1, 1], [0, 0, 1]],
-            [[1, 1, 0], [0, 1, 1]],
-            [[0, 1, 1], [1, 1, 0]]
-        ];
+	function createBoard() {
+		return Array.from({length: BOARD_HEIGHT}, () => Array(BOARD_WIDTH).fill(0));
+	}
 
-        function createBoard() {
-            return Array.from({ length: BOARD_HEIGHT }, () => Array(BOARD_WIDTH).fill(0));
-        }
+	function drawRoundedRect(ctx, x, y, width, height, radius) {
+		ctx.beginPath();
+		ctx.moveTo(x + radius, y);
+		ctx.lineTo(x + width - radius, y);
+		ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+		ctx.lineTo(x + width, y + height - radius);
+		ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+		ctx.lineTo(x + radius, y + height);
+		ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+		ctx.lineTo(x, y + radius);
+		ctx.quadraticCurveTo(x, y, x + radius, y);
+		ctx.closePath();
+	}
 
-        function drawRoundedRect(ctx, x, y, width, height, radius) {
-            ctx.beginPath();
-            ctx.moveTo(x + radius, y);
-            ctx.lineTo(x + width - radius, y);
-            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-            ctx.lineTo(x + width, y + height - radius);
-            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-            ctx.lineTo(x + radius, y + height);
-            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-            ctx.lineTo(x, y + radius);
-            ctx.quadraticCurveTo(x, y, x + radius, y);
-            ctx.closePath();
-        }
+	function drawBlock(ctx, x, y, color, opacity = 1, scaleY = 1) {
+		ctx.save();
+		ctx.globalAlpha = opacity;
+		ctx.fillStyle = color;
+		ctx.translate(x * BLOCK_SIZE, y * BLOCK_SIZE);
+		ctx.scale(1, scaleY);
+		drawRoundedRect(ctx, 0, 0, BLOCK_SIZE, BLOCK_SIZE, 5);
+		ctx.fill();
+		ctx.strokeStyle = 'var(--block-stroke)';
+		ctx.stroke();
+		ctx.restore();
+	}
 
-        function drawBlock(x, y, color, opacity = 1, scaleY = 1) {
-            ctx.save();
-            ctx.globalAlpha = opacity;
-            ctx.fillStyle = color;
-            ctx.translate(x * BLOCK_SIZE, y * BLOCK_SIZE);
-            ctx.scale(1, scaleY);
-            drawRoundedRect(ctx, 0, 0, BLOCK_SIZE, BLOCK_SIZE, 5);
-            ctx.fill();
-            ctx.strokeStyle = 'var(--block-stroke)';
-            ctx.stroke();
-            ctx.restore();
-        }
+	function drawBoard(player) {
+		player.board.forEach((row, y) => {
+			row.forEach((value, x) => {
+				if (value > 0) {
+					let opacity = 1;
+					if (player.rowsToClear.includes(y) && player.clearingStartTime) {
+						const elapsed = Date.now() - player.clearingStartTime;
+						const duration = 200;
+						opacity = 1 - elapsed / duration;
+						if (opacity < 0) opacity = 0;
+					}
+					drawBlock(player.ctx, x, y, COLORS[value - 1], opacity);
+				}
+			});
+		});
+	}
 
-        function drawBoard() {
-            board.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value > 0) {
-                        let opacity = 1;
-                        if (rowsToClear.includes(y) && clearingStartTime) {
-                            const elapsed = Date.now() - clearingStartTime;
-                            const duration = 200; // Reduced duration
-                            opacity = 1 - elapsed / duration;
-                            if (opacity < 0) opacity = 0;
-                        }
-                        drawBlock(x, y, COLORS[value - 1], opacity);
-                    }
-                });
-            });
-        }
+	function drawPiece(player, piece, offsetX, offsetY) {
+		piece.shape.forEach((row, y) => {
+			row.forEach((value, x) => {
+				if (value > 0) {
+					drawBlock(player.ctx, x + offsetX, y + offsetY, COLORS[piece.color]);
+				}
+			});
+		});
+	}
 
-        function drawPiece(piece, offsetX, offsetY) {
-            piece.shape.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value > 0) {
-                        drawBlock(x + offsetX, y + offsetY, COLORS[piece.color]);
-                    }
-                });
-            });
-        }
+	function drawGhostPiece(player, piece) {
+		const ghost = getGhostPiece(player, piece);
+		player.ctx.save();
+		player.ctx.globalAlpha = 0.3;
+		player.ctx.strokeStyle = '#000000';
+		player.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+		player.ctx.setLineDash([5, 5]);
+		piece.shape.forEach((row, y) => {
+			row.forEach((value, x) => {
+				if (value > 0) {
+					drawRoundedRect(player.ctx, (x + ghost.x) * BLOCK_SIZE, (y + ghost.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 5);
+					player.ctx.fill();
+					player.ctx.stroke();
+				}
+			});
+		});
+		player.ctx.setLineDash([]);
+		player.ctx.restore();
+	}
 
-        function drawGhostPiece(piece) {
-            const ghost = getGhostPiece(piece);
-            ctx.save();
-            ctx.globalAlpha = 0.3; // Increased opacity for better visibility
-            ctx.strokeStyle = '#000000'; // Changed to black for better contrast in light mode
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; // Added a light fill for better visibility
-            ctx.setLineDash([5, 5]);
-            piece.shape.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value > 0) {
-                        drawRoundedRect(ctx, (x + ghost.x) * BLOCK_SIZE, (y + ghost.y) * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE, 5);
-                        ctx.fill();
-                        ctx.stroke();
-                    }
-                });
-            });
-            ctx.setLineDash([]);
-            ctx.restore();
-        }
+	function createPiece() {
+		const shapeIndex = Math.floor(Math.random() * SHAPES.length);
+		return {
+			shape: SHAPES[shapeIndex],
+			color: shapeIndex,
+			x: 0,
+			y: 0
+		};
+	}
 
-        function createPiece() {
-            const shapeIndex = Math.floor(Math.random() * SHAPES.length);
-            return {
-                shape: SHAPES[shapeIndex],
-                color: shapeIndex,
-                x: 0,
-                y: 0
-            };
-        }
+	function drawNextPiece(player) {
+		player.nextPieceCtx.clearRect(0, 0, 100, 100);
 
-        function drawNextPiece() {
-            nextPieceCtx.clearRect(0, 0, 100, 100);
-            
-            // Calculate the size and position to center the piece
-            const pieceWidth = nextPiece.shape[0].length;
-            const pieceHeight = nextPiece.shape.length;
-            const blockSize = Math.min(25, 100 / Math.max(pieceWidth, pieceHeight));
-            const xOffset = (100 - pieceWidth * blockSize) / 2;
-            const yOffset = (100 - pieceHeight * blockSize) / 2;
+		const pieceWidth = player.nextPiece.shape[0].length;
+		const pieceHeight = player.nextPiece.shape.length;
+		const blockSize = Math.min(25, 100 / Math.max(pieceWidth, pieceHeight));
+		const xOffset = (100 - pieceWidth * blockSize) / 2;
+		const yOffset = (100 - pieceHeight * blockSize) / 2;
 
-            nextPiece.shape.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value > 0) {
-                        nextPieceCtx.fillStyle = COLORS[nextPiece.color];
-                        drawRoundedRect(
-                            nextPieceCtx, 
-                            x * blockSize + xOffset, 
-                            y * blockSize + yOffset, 
-                            blockSize, 
-                            blockSize, 
-                            blockSize / 5
-                        );
-                        nextPieceCtx.fill();
-                        nextPieceCtx.strokeStyle = 'var(--block-stroke)';
-                        nextPieceCtx.stroke();
-                    }
-                });
-            });
-        }
+		player.nextPiece.shape.forEach((row, y) => {
+			row.forEach((value, x) => {
+				if (value > 0) {
+					player.nextPieceCtx.fillStyle = COLORS[player.nextPiece.color];
+					drawRoundedRect(
+						player.nextPieceCtx,
+						x * blockSize + xOffset,
+						y * blockSize + yOffset,
+						blockSize,
+						blockSize,
+						blockSize / 5
+					);
+					player.nextPieceCtx.fill();
+					player.nextPieceCtx.strokeStyle = 'var(--block-stroke)';
+					player.nextPieceCtx.stroke();
+				}
+			});
+		});
+	}
 
-        function clonePiece(piece) {
-            return {
-                shape: piece.shape.map(row => [...row]),
-                color: piece.color,
-                x: piece.x,
-                y: piece.y
-            };
-        }
+	function clonePiece(piece) {
+		return {
+			shape: piece.shape.map(row => [...row]),
+			color: piece.color,
+			x: piece.x,
+			y: piece.y
+		};
+	}
 
-        function getInitialPosition(piece) {
-            const x = Math.floor(BOARD_WIDTH / 2) - Math.floor(piece.shape[0].length / 2);
-            let y = 0;
-            
-            // Find the topmost non-empty row of the piece
-            for (let i = 0; i < piece.shape.length; i++) {
-                if (piece.shape[i].some(cell => cell !== 0)) {
-                    y = -i;
-                    break;
-                }
-            }
-            
-            return { x, y };
-        }
+	function getInitialPosition(piece) {
+		const x = Math.floor(BOARD_WIDTH / 2) - Math.floor(piece.shape[0].length / 2);
+		let y = 0;
 
-        function isValidPosition(piece, board) {
-            for (let y = 0; y < piece.shape.length; y++) {
-                for (let x = 0; x < piece.shape[y].length; x++) {
-                    if (piece.shape[y][x]) {
-                        let boardY = y + piece.y;
-                        let boardX = x + piece.x;
+		for (let i = 0; i < piece.shape.length; i++) {
+			if (piece.shape[i].some(cell => cell !== 0)) {
+				y = -i;
+				break;
+			}
+		}
 
-                        if (boardX < 0 || boardX >= BOARD_WIDTH || boardY >= BOARD_HEIGHT) {
-                            return false;
-                        }
+		return {x, y};
+	}
 
-                        if (boardY >= 0 && board[boardY][boardX] !== 0) {
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
-        }
+	function isValidPosition(piece, board) {
+		for (let y = 0; y < piece.shape.length; y++) {
+			for (let x = 0; x < piece.shape[y].length; x++) {
+				if (piece.shape[y][x]) {
+					let boardY = y + piece.y;
+					let boardX = x + piece.x;
 
-        function rotate(piece) {
-            const rotated = piece.shape[0].map((_, index) =>
-                piece.shape.map(row => row[index]).reverse()
-            );
-            const originalX = piece.x;
-            let offset = 1;
-            while (!isValidPosition({ ...piece, shape: rotated }, board)) {
-                piece.x += offset;
-                offset = -(offset + (offset > 0 ? 1 : -1));
-                if (offset > piece.shape[0].length) {
-                    piece.x = originalX;
-                    return;
-                }
-            }
-            piece.shape = rotated;
-        }
+					if (boardX < 0 || boardX >= BOARD_WIDTH || boardY >= BOARD_HEIGHT) {
+						return false;
+					}
 
-        function resetPiece() {
-            currentPiece = clonePiece(nextPiece);
-            const initialPosition = getInitialPosition(currentPiece);
-            currentPiece.x = initialPosition.x;
-            currentPiece.y = initialPosition.y;
+					if (boardY >= 0 && board[boardY][boardX] !== 0) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
 
-            // Check if the new piece can be placed
-            if (!isValidPosition(currentPiece, board)) {
-                gameOver();
-                return false;
-            }
+	function rotate(piece, board) {
+		const rotated = piece.shape[0].map((_, index) =>
+			piece.shape.map(row => row[index]).reverse()
+		);
+		const originalX = piece.x;
+		let offset = 1;
+		while (!isValidPosition({...piece, shape: rotated}, board)) {
+			piece.x += offset;
+			offset = -(offset + (offset > 0 ? 1 : -1));
+			if (offset > piece.shape[0].length) {
+				piece.x = originalX;
+				return;
+			}
+		}
+		piece.shape = rotated;
+	}
 
-            nextPiece = createPiece();
-            drawNextPiece();
-            pieceLanded = false;
-            return true;
-        }
+	function resetPiece(player) {
+		player.currentPiece = clonePiece(player.nextPiece);
+		const initialPosition = getInitialPosition(player.currentPiece);
+		player.currentPiece.x = initialPosition.x;
+		player.currentPiece.y = initialPosition.y;
 
-        function moveDown() {
-            if (isDownKeyPressed) {
-                previousPositions.push({
-                    x: currentPiece.x,
-                    y: currentPiece.y,
-                    shape: currentPiece.shape,
-                    color: currentPiece.color
-                });
-                if (previousPositions.length > maxTrailLength) {
-                    previousPositions.shift();
-                }
-            }
+		if (!isValidPosition(player.currentPiece, player.board)) {
+			gameOver(player);
+			return false;
+		}
 
-            currentPiece.y++;
-            if (!isValidPosition(currentPiece, board)) {
-                currentPiece.y--;
-                merge(board, currentPiece);
-                if (!resetPiece()) {
-                    return; // Game over, don't continue
-                }
-            }
-            dropCounter = 0;
-        }
+		player.nextPiece = createPiece();
+		drawNextPiece(player);
+		player.pieceLanded = false;
+		return true;
+	}
 
-        function moveLeft() {
-            currentPiece.x--;
-            if (!isValidPosition(currentPiece, board)) {
-                currentPiece.x++;
-            }
-        }
+	function moveDown(player) {
+		if (player.isDownKeyPressed) {
+			player.previousPositions.push({
+				x: player.currentPiece.x,
+				y: player.currentPiece.y,
+				shape: player.currentPiece.shape,
+				color: player.currentPiece.color
+			});
+			if (player.previousPositions.length > 5) {
+				player.previousPositions.shift();
+			}
+		}
 
-        function moveRight() {
-            currentPiece.x++;
-            if (!isValidPosition(currentPiece, board)) {
-                currentPiece.x--;
-            }
-        }
+		player.currentPiece.y++;
+		if (!isValidPosition(player.currentPiece, player.board)) {
+			player.currentPiece.y--;
+			merge(player, player.board, player.currentPiece);
+			if (!resetPiece(player)) {
+				return;
+			}
+		}
+		player.dropCounter = 0;
+	}
 
-        function merge(board, piece) {
-            piece.shape.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value > 0) {
-                        board[y + piece.y][x + piece.x] = piece.color + 1;
-                    }
-                });
-            });
-            checkRows();
-            pieceLanded = true;
-            previousPositions = []; // Clear motion blur when piece lands
+	function moveLeft(player) {
+		player.currentPiece.x--;
+		if (!isValidPosition(player.currentPiece, player.board)) {
+			player.currentPiece.x++;
+		}
+	}
 
-            // Start shake effect
-            shakeStartTime = Date.now();
-        }
+	function moveRight(player) {
+		player.currentPiece.x++;
+		if (!isValidPosition(player.currentPiece, player.board)) {
+			player.currentPiece.x--;
+		}
+	}
 
-        function checkRows() {
-            rowsToClear = [];
-            outer: for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
-                for (let x = 0; x < BOARD_WIDTH; x++) {
-                    if (board[y][x] === 0) {
-                        continue outer;
-                    }
-                }
-                rowsToClear.push(y);
-            }
+	function merge(player, board, piece) {
+		piece.shape.forEach((row, y) => {
+			row.forEach((value, x) => {
+				if (value > 0) {
+					board[y + piece.y][x + piece.x] = piece.color + 1;
+				}
+			});
+		});
+		checkRows(player);
+		player.pieceLanded = true;
+		player.previousPositions = [];
+		player.shakeStartTime = Date.now();
+	}
 
-            if (rowsToClear.length > 0) {
-                clearingStartTime = Date.now();
-                score += [40, 100, 300, 1200][rowsToClear.length - 1] * (level + 1);
-                linesCleared += rowsToClear.length;
-                updateLevel();
-                updateScore();
-            }
-        }
+	function checkRows(player) {
+		player.rowsToClear = [];
+		outer: for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+			for (let x = 0; x < BOARD_WIDTH; x++) {
+				if (player.board[y][x] === 0) {
+					continue outer;
+				}
+			}
+			player.rowsToClear.push(y);
+		}
 
-        function updateLevel() {
-            level = Math.floor(linesCleared / 10);
-            dropInterval = 1000 - (level * 100);
-            if (dropInterval < 100) dropInterval = 100;
-            levelElement.textContent = `Level: ${level}`;
-        }
+		if (player.rowsToClear.length > 0) {
+			player.clearingStartTime = Date.now();
+			player.score += [40, 100, 300, 1200][player.rowsToClear.length - 1] * (player.level + 1);
+			player.linesCleared += player.rowsToClear.length;
+			updateLevel(player);
+			updateScore(player);
+		}
+	}
 
-        function updateScore() {
-            scoreElement.textContent = `Score: ${score}`;
-            if (score > highScore) {
-                highScore = score;
-                highScoreElement.textContent = `High Score: ${highScore}`;
-                // Save high score to local storage
-                if (typeof(Storage) !== "undefined") {
-                    localStorage.setItem('tetrisHighScore', highScore);
-                }
-            }
-        }
+	function updateLevel(player) {
+		player.level = Math.floor(player.linesCleared / 10);
+		player.dropInterval = 1000 - (player.level * 100);
+		if (player.dropInterval < 100) player.dropInterval = 100;
+		player.levelElement.textContent = `Level: ${player.level}`;
+	}
 
-        function gameOver() {
-            cancelAnimationFrame(gameLoop);
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#fff';
-            ctx.font = '30px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
-            startButton.disabled = false;
-            pieceLanded = true;
-        }
+	function updateScore(player) {
+		player.scoreElement.textContent = `Score: ${player.score}`;
+		if (player.score > player.highScore) {
+			player.highScore = player.score;
+			player.highScoreElement.textContent = `High Score: ${player.highScore}`;
+			if (typeof (Storage) !== "undefined") {
+				localStorage.setItem(`tetrisHighScore${player === players[0] ? '1' : '2'}`, player.highScore);
+			}
+		}
+	}
 
-        function update(time = 0) {
-            if (isPaused) {
-                return;
-            }
+	function gameOver(player) {
+		player.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+		player.ctx.fillRect(0, 0, player.canvas.width, player.canvas.height);
+		player.ctx.fillStyle = '#fff';
+		player.ctx.font = '30px Arial';
+		player.ctx.textAlign = 'center';
+		player.ctx.fillText('Game Over', player.canvas.width / 2, player.canvas.height / 2);
+		player.pieceLanded = true;
+	}
 
-            const deltaTime = time - lastTime;
-            lastTime = time;
-            dropCounter += deltaTime;
+	function update(time = 0) {
+		if (isPaused) {
+			return;
+		}
 
-            let currentDropInterval = dropInterval;
-            let speedFactor = 1;
-            if (isDownKeyPressed) {
-                currentDropInterval = dropInterval / 10; // Increase speed
-                speedFactor = 10;
-            }
+		players.forEach(player => {
+			const deltaTime = time - player.lastTime;
+			player.lastTime = time;
+			player.dropCounter += deltaTime;
 
-            if (dropCounter > currentDropInterval && !clearingStartTime) {
-                moveDown();
-                if (pieceLanded) {
-                    return; // Stop the update if the game is over
-                }
-            }
+			let currentDropInterval = player.dropInterval;
+			let speedFactor = 1;
+			if (player.isDownKeyPressed) {
+				currentDropInterval = player.dropInterval / 10;
+				speedFactor = 10;
+			}
 
-            // Apply shake effect if shaking
-            if (shakeStartTime) {
-                const elapsed = Date.now() - shakeStartTime;
-                if (elapsed < shakeDuration) {
-                    const magnitude = 5 * speedFactor / 10; // Adjust shake magnitude based on speed
-                    const shakeX = (Math.random() - 0.5) * magnitude;
-                    const shakeY = (Math.random() - 0.5) * magnitude;
-                    ctx.save();
-                    ctx.translate(shakeX, shakeY);
-                } else {
-                    shakeStartTime = null;
-                }
-            }
+			if (player.dropCounter > currentDropInterval && !player.clearingStartTime) {
+				moveDown(player);
+				if (player.pieceLanded) {
+					return;
+				}
+			}
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBoard();
+			if (player.shakeStartTime) {
+				const elapsed = Date.now() - player.shakeStartTime;
+				if (elapsed < 200) {
+					const magnitude = 5 * speedFactor / 10;
+					const shakeX = (Math.random() - 0.5) * magnitude;
+					const shakeY = (Math.random() - 0.5) * magnitude;
+					player.ctx.save();
+					player.ctx.translate(shakeX, shakeY);
+				} else {
+					player.shakeStartTime = null;
+				}
+			}
 
-            if (clearingStartTime) {
-                const elapsed = Date.now() - clearingStartTime;
-                const duration = 200; // Reduced duration
-                if (elapsed >= duration) {
-                    // Sort rowsToClear in descending order
-                    rowsToClear.sort((a, b) => b - a);
-                    for (let i = 0; i < rowsToClear.length; i++) {
-                        const y = rowsToClear[i];
-                        board.splice(y, 1);
-                    }
-                    for (let i = 0; i < rowsToClear.length; i++) {
-                        board.unshift(Array(BOARD_WIDTH).fill(0));
-                    }
-                    rowsToClear = [];
-                    clearingStartTime = null;
-                }
-            }
+			player.ctx.clearRect(0, 0, player.canvas.width, player.canvas.height);
+			drawBoard(player);
 
-            if (previousPositions.length > 0) {
-                drawMotionBlur();
-            }
+			if (player.clearingStartTime) {
+				const elapsed = Date.now() - player.clearingStartTime;
+				const duration = 200;
+				if (elapsed >= duration) {
+					player.rowsToClear.sort((a, b) => b - a);
+					for (let i = 0; i < player.rowsToClear.length; i++) {
+						const y = player.rowsToClear[i];
+						player.board.splice(y, 1);
+					}
+					for (let i = 0; i < player.rowsToClear.length; i++) {
+						player.board.unshift(Array(BOARD_WIDTH).fill(0));
+					}
+					player.rowsToClear = [];
+					player.clearingStartTime = null;
+				}
+			}
 
-            if (currentPiece) {
-                drawGhostPiece(currentPiece);
-                drawPiece(currentPiece, currentPiece.x, currentPiece.y);
-            }
+			if (player.previousPositions.length > 0) {
+				drawMotionBlur(player);
+			}
 
-            // Restore context if shaking
-            if (shakeStartTime) {
-                ctx.restore();
-            }
+			if (player.currentPiece) {
+				drawGhostPiece(player, player.currentPiece);
+				drawPiece(player, player.currentPiece, player.currentPiece.x, player.currentPiece.y);
+			}
 
-            gameLoop = requestAnimationFrame(update);
-        }
+			if (player.shakeStartTime) {
+				player.ctx.restore();
+			}
+		});
 
-        function drawMotionBlur() {
-            for (let i = 0; i < previousPositions.length; i++) {
-                const pos = previousPositions[i];
-                const opacity = (i + 1) / previousPositions.length * 0.6; // Increased max opacity to 0.6
-                drawPieceWithOpacity(pos, opacity);
-            }
-        }
+		requestAnimationFrame(update);
+	}
 
-        function drawPieceWithOpacity(piece, opacity) {
-            ctx.save();
-            ctx.globalAlpha = opacity;
-            // Increase scaleY as opacity decreases to simulate motion blur
-            let scaleY = 1 + (1 - opacity) * 3; // Increased blur effect
-            piece.shape.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value > 0) {
-                        drawBlock(x + piece.x, y + piece.y, COLORS[piece.color], opacity, scaleY);
-                    }
-                });
-            });
-            ctx.restore();
-        }
+	function drawMotionBlur(player) {
+		for (let i = 0; i < player.previousPositions.length; i++) {
+			const pos = player.previousPositions[i];
+			const opacity = (i + 1) / player.previousPositions.length * 0.6;
+			drawPieceWithOpacity(player, pos, opacity);
+		}
+	}
 
-        function getGhostPiece(piece) {
-            const ghost = { ...piece, y: piece.y };
-            while (isValidPosition(ghost, board)) {
-                ghost.y++;
-            }
-            ghost.y--;
-            return ghost;
-        }
+	function drawPieceWithOpacity(player, piece, opacity) {
+		player.ctx.save();
+		player.ctx.globalAlpha = opacity;
+		let scaleY = 1 + (1 - opacity) * 3;
+		piece.shape.forEach((row, y) => {
+			row.forEach((value, x) => {
+				if (value > 0) {
+					drawBlock(player.ctx, x + piece.x, y + piece.y, COLORS[piece.color], opacity, scaleY);
+				}
+			});
+		});
+		player.ctx.restore();
+	}
 
-        function startGame() {
-            board = createBoard();
-            score = 0;
-            linesCleared = 0;
-            level = 0;
-            dropInterval = 1000;
-            updateScore();
-            updateLevel();
-            nextPiece = createPiece();
-            resetPiece();
-            pieceLanded = false;
-            isPaused = false;
-            isDownKeyPressed = false;
-            previousPositions = [];
-            drawNextPiece();
-            lastTime = 0;
-            dropCounter = 0;
+	function getGhostPiece(player, piece) {
+		const ghost = {...piece, y: piece.y};
+		while (isValidPosition(ghost, player.board)) {
+			ghost.y++;
+		}
+		ghost.y--;
+		return ghost;
+	}
 
-            // Load high score from local storage
-            if (typeof(Storage) !== "undefined") {
-                const storedHighScore = localStorage.getItem('tetrisHighScore');
-                if (storedHighScore !== null) {
-                    highScore = parseInt(storedHighScore, 10);
-                    highScoreElement.textContent = `High Score: ${highScore}`;
-                }
-            }
+	let isPaused = false;
 
-            if (gameLoop) {
-                cancelAnimationFrame(gameLoop);
-            }
-            gameLoop = requestAnimationFrame(update);
-            startButton.disabled = true;
-        }
+	function startGame() {
+		players.forEach(player => {
+			player.board = createBoard();
+			player.score = 0;
+			player.linesCleared = 0;
+			player.level = 0;
+			player.dropInterval = 1000;
+			updateScore(player);
+			updateLevel(player);
+			player.nextPiece = createPiece();
+			resetPiece(player);
+			player.pieceLanded = false;
+			player.isDownKeyPressed = false;
+			player.previousPositions = [];
+			drawNextPiece(player);
+			player.lastTime = 0;
+			player.dropCounter = 0;
 
-        function togglePause() {
-            isPaused = !isPaused;
-            if (isPaused) {
-                cancelAnimationFrame(gameLoop);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#fff';
-                ctx.font = '30px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Paused', canvas.width / 2, canvas.height / 2);
-            } else {
-                lastTime = performance.now();
-                gameLoop = requestAnimationFrame(update);
-            }
-        }
+			if (typeof (Storage) !== "undefined") {
+				const storedHighScore = localStorage.getItem(`tetrisHighScore${player === players[0] ? '1' : '2'}`);
+				if (storedHighScore !== null) {
+					player.highScore = parseInt(storedHighScore, 10);
+					player.highScoreElement.textContent = `High Score: ${player.highScore}`;
+				}
+			}
+		});
 
-        document.addEventListener('keydown', event => {
-            if (startButton.disabled && !pieceLanded) {
-                switch (event.keyCode) {
-                    case 37: // Left arrow
-                        moveLeft();
-                        break;
-                    case 39: // Right arrow
-                        moveRight();
-                        break;
-                    case 40: // Down arrow
-                        isDownKeyPressed = true;
-                        break;
-                    case 38: // Up arrow
-                        rotate(currentPiece);
-                        break;
-                }
-            }
-            // 'P' key to pause/unpause the game
-            if (event.keyCode === 80) {
-                togglePause();
-            }
-            // 'S' key to start/restart the game
-            if (event.keyCode === 83) {
-                startGame();
-            }
-        });
+		isPaused = false;
+		requestAnimationFrame(update);
+		startButton.disabled = true;
+	}
 
-        document.addEventListener('keyup', event => {
-            if (event.keyCode === 40) {
-                isDownKeyPressed = false;
-                previousPositions = []; // Clear motion blur when down key is released
-            }
-        });
+	function togglePause() {
+		isPaused = !isPaused;
+		if (isPaused) {
+			players.forEach(player => {
+				player.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+				player.ctx.fillRect(0, 0, player.canvas.width, player.canvas.height);
+				player.ctx.fillStyle = '#fff';
+				player.ctx.font = '30px Arial';
+				player.ctx.textAlign = 'center';
+				player.ctx.fillText('Paused', player.canvas.width / 2, player.canvas.height / 2);
+			});
+		} else {
+			players.forEach(player => {
+				player.lastTime = performance.now();
+			});
+			requestAnimationFrame(update);
+		}
+	}
 
-        startButton.addEventListener('click', startGame);
+	document.addEventListener('keydown', event => {
+		if (startButton.disabled && !players[0].pieceLanded) {
+			switch (event.code) {
+				case 'ArrowLeft':
+					moveLeft(players[0]);
+					break;
+				case 'ArrowRight':
+					moveRight(players[0]);
+					break;
+				case 'ArrowDown':
+					players[0].isDownKeyPressed = true;
+					break;
+				case 'ArrowUp':
+					rotate(players[0].currentPiece, players[0].board);
+					break;
+			}
+		}
+		if (isMultiplayer && startButton.disabled && !players[1].pieceLanded) {
+			switch (event.code) {
+				case 'KeyA':
+					moveLeft(players[1]);
+					break;
+				case 'KeyD':
+					moveRight(players[1]);
+					break;
+				case 'KeyS':
+					players[1].isDownKeyPressed = true;
+					break;
+				case 'KeyW':
+					rotate(players[1].currentPiece, players[1].board);
+					break;
+			}
+		}
+		if (event.code === 'Space') {
+			togglePause();
+		}
+		if (event.code === 'Enter') {
+			startGame();
+		}
+	});
 
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('dark-mode');
-        });
+	document.addEventListener('keyup', event => {
+		if (event.code === 'ArrowDown') {
+			players[0].isDownKeyPressed = false;
+			players[0].previousPositions = [];
+		}
+		if (isMultiplayer && event.code === 'KeyS') {
+			players[1].isDownKeyPressed = false;
+			players[1].previousPositions = [];
+		}
+	});
 
-        // Set initial theme based on system preference
-        const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
-        if (prefersDarkScheme.matches) {
-            document.body.classList.add('dark-mode');
-        }
+	startButton.addEventListener('click', startGame);
 
-        // Reset high score button
-        resetHighScoreButton.addEventListener('click', () => {
-            if (typeof(Storage) !== "undefined") {
-                localStorage.removeItem('tetrisHighScore');
-                highScore = 0;
-                highScoreElement.textContent = `High Score: ${highScore}`;
-            }
-        });
-    </script>
+	themeToggle.addEventListener('click', () => {
+		document.body.classList.toggle('dark-mode');
+	});
+
+	const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+	if (prefersDarkScheme.matches) {
+		document.body.classList.add('dark-mode');
+	}
+
+	resetHighScoreButton.addEventListener('click', () => {
+		players.forEach((player, index) => {
+			if (typeof (Storage) !== "undefined") {
+				localStorage.removeItem(`tetrisHighScore${index + 1}`);
+				player.highScore = 0;
+				player.highScoreElement.textContent = `High Score: ${player.highScore}`;
+			}
+		});
+	});
+
+	toggleMultiplayerButton.addEventListener('click', () => {
+		isMultiplayer = !isMultiplayer;
+		const player2Container = document.getElementById('player2-container');
+		if (isMultiplayer) {
+			player2Container.style.display = 'flex';
+			players.push(createPlayer(2));
+		} else {
+			player2Container.style.display = 'none';
+			players.pop();
+		}
+		// Reset the start button
+		startButton.disabled = false;
+	});
+</script>
 </body>
 </html>
